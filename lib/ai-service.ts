@@ -103,7 +103,7 @@ Analysis:`;
             inputs: prompt,
             parameters: {
                 max_new_tokens: 250,
-                temperature: 0.1, // Near zero for factual extraction
+                temperature: 0.0001, // Near zero for factual extraction
                 stop_sequences: ['<|eot_id|>', 'Category:', 'Data Context:']
             }
         });
