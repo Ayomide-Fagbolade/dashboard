@@ -10,38 +10,32 @@ export const REPORT_SECTIONS = [
     {
         id: 'hotspots',
         label: 'Transit Hotspots',
-        instruction: 'Summarize specific locations, terminals, or stations experiencing bottlenecks, overcrowding, or high traffic. Be precise.',
-        keywords: ['terminal', 'station', 'bus stop', 'overcrowd', 'traffic', 'bottleneck', 'ikorodu', 'oshodi', 'tbs', 'berger', 'mile 12', 'abule egba']
+        instruction: 'Summarize specific locations, terminals, or stations experiencing bottlenecks, overcrowding, or high traffic. Be precise.'
     },
     {
         id: 'incidents',
         label: 'Critical Incidents',
-        instruction: 'Synthesize and summarize specific unique accidents, safety breaches, or recurring mechanical failures into a single analytical paragraph. Mention specific spots or dates if found.',
-        keywords: ['accident', 'failed', 'broken', 'fire', 'crisis', 'emergency', 'delay', 'stuck', 'fault', 'crashed', 'police', 'robbery']
+        instruction: 'Synthesize and summarize specific unique accidents, safety breaches, or recurring mechanical failures into a single analytical paragraph. Mention specific spots or dates if found.'
     },
     {
         id: 'conduct',
         label: 'Staff & Operator Audit',
-        instruction: 'Analyze mentions of driver behavior, terminal staff conduct, or professional ethics. Focus on complaints or praises.',
-        keywords: ['driver', 'staff', 'attendant', 'official', 'rude', 'behavior', 'professional', 'conduct', 'extortion']
+        instruction: 'Analyze mentions of driver behavior, terminal staff conduct, or professional ethics. Focus on complaints or praises.'
     },
     {
         id: 'safety',
         label: 'Accessibility & Safety',
-        instruction: 'Audit concerns regarding security, lighting, harassment, or inclusivity for the elderly and disabled.',
-        keywords: ['security', 'safety', 'harassment', 'theft', 'lighting', 'dark', 'elderly', 'disabled', 'woman', 'danger']
+        instruction: 'Audit concerns regarding security, lighting, harassment, or inclusivity for the elderly and disabled.'
     },
     {
         id: 'infrastructure',
         label: 'Infrastructure & Equipment',
-        instruction: 'Audit the state of ACs, buses, payment (Cowry) systems, and terminal facilities.',
-        keywords: ['ac', 'air condition', 'cowry', 'payment', 'card', 'bus', 'seat', 'engine', 'maintenance']
+        instruction: 'Audit the state of ACs, buses, payment (Cowry) systems, and terminal facilities.'
     },
     {
         id: 'suggestions',
         label: 'Actionable Suggestions',
-        instruction: 'Identify and list specific passenger requests for new routes, facility upgrades, or service changes. Focus on "should", "could", and "please" statements.',
-        keywords: ['should', 'need', 'improve', 'please', 'suggest', 'recommend', 'could', 'would like', 'fix', 'add', 'deploy', 'extend']
+        instruction: 'Identify and list specific passenger requests for new routes, facility upgrades, or service changes. Focus on "should", "could", and "please" statements.'
     }
 ];
 
@@ -52,23 +46,10 @@ export async function generateReportSection(
     topTags: string,
     apiKey: string
 ): Promise<string> {
-    // Filter context specifically for this section
-    let sectionRelevantData = data.filter(t => {
-        const text = (t['cleaned tweet'] || t['tweet'] || t['tweet content'] || '').toLowerCase();
-        const keywords = section.keywords || [];
-        return keywords.some(kw => text.includes(kw));
-    });
-
-    // If no specific results, fall back to top engaged
-    if (sectionRelevantData.length === 0) {
-        sectionRelevantData = data
-            .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
-            .slice(0, 15);
-    } else {
-        sectionRelevantData = sectionRelevantData
-            .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
-            .slice(0, 15);
-    }
+    // Use all filtered data, sorted by engagement
+    const sectionRelevantData = data
+        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
+        .slice(0, 20); // Increased from 15 to 20 for better context
 
     const contextText = sectionRelevantData
         .map(t => t['cleaned tweet'] || t['tweet'] || t['tweet content'])

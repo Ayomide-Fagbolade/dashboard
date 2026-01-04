@@ -436,7 +436,7 @@ export default function Dashboard() {
                                 <Sparkles className="h-5 md:h-6 w-5 md:w-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-lg md:text-xl font-bold text-white">Gemini 1.5 Pro Intelligence</h3>
+                                <h3 className="text-lg md:text-xl font-bold text-white">Gemini 2.5 Flash Intelligence</h3>
                                 <p className="text-sky-100 text-[10px] md:text-sm font-medium">Auditing hotspots, conduct, safety, and infrastructure health</p>
                             </div>
                         </div>
