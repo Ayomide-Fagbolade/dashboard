@@ -10,7 +10,7 @@ export const REPORT_SECTIONS = [
     {
         id: 'hotspots',
         label: 'Transit Hotspots',
-        instruction: 'Summarize specific locations, terminals, or stations experiencing bottlenecks, overcrowding, or high traffic. Be precise.'
+        instruction: 'Summarize specific locations, terminals, or stations experiencing bottlenecks, overcrowding, or high traffic. Be succinct.'
     },
     {
         id: 'incidents',
@@ -46,10 +46,9 @@ export async function generateReportSection(
     topTags: string,
     apiKey: string
 ): Promise<string> {
-    // Use all filtered data, sorted by engagement
+    // Use all filtered data, sorted by engagement (most engaged first)
     const sectionRelevantData = data
-        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
-        .slice(0, 20); // Increased from 15 to 20 for better context
+        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0));
 
     const contextText = sectionRelevantData
         .map(t => t['cleaned tweet'] || t['tweet'] || t['tweet content'])
