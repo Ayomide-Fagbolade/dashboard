@@ -1,4 +1,5 @@
 import { HfInference } from '@huggingface/inference';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface AISection {
     id: string;
@@ -11,7 +12,7 @@ export const REPORT_SECTIONS = [
         id: 'hotspots',
         label: 'Transit Hotspots',
         instruction: 'Summarize specific locations, terminals, or stations experiencing bottlenecks, overcrowding, or high traffic. Be precise.',
-        keywords: ['terminal', 'station', 'bus stop', 'overcrowd', 'traffic', 'bottleneck', 'ikorodu', 'oshodi', 'tbs', 'berger', 'mile 12', 'abule egba']
+        keywords: ['terminal', 'strong', 'station', 'bus stop', 'overcrowd', 'traffic', 'bottleneck', 'ikorodu', 'oshodi', 'tbs', 'berger', 'mile 12', 'abule egba']
     },
     {
         id: 'incidents',
@@ -52,15 +53,17 @@ export async function generateReportSection(
     topTags: string,
     token: string
 ): Promise<string> {
-    const hf = new HfInference(token);
+    // Detect if the token is a Gemini API Key (starts with AIza)
+    const isGemini = token.startsWith('AIza');
 
     // Filter context specifically for this section to avoid yapping about irrelevant data
     let sectionRelevantData = data.filter(t => {
-        const text = (t['cleaned tweet'] || t['tweet'] || '').toLowerCase();
-        return section.keywords.some(kw => text.includes(kw));
+        const text = (t['cleaned tweet'] || t['tweet'] || t['tweet content'] || '').toLowerCase();
+        const keywords = section.keywords || [];
+        return keywords.some(kw => text.includes(kw));
     });
 
-    // If no specific results, fall back to top engaged negative for critical sections, or just top engaged
+    // If no specific results, fall back to top engaged
     if (sectionRelevantData.length === 0) {
         sectionRelevantData = data
             .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
@@ -72,8 +75,48 @@ export async function generateReportSection(
     }
 
     const contextText = sectionRelevantData
-        .map(t => t['cleaned tweet'])
+        .map(t => t['cleaned tweet'] || t['tweet'] || t['tweet content'])
+        .filter(Boolean)
         .join('\n- ');
+
+    if (isGemini) {
+        try {
+            const genAI = new GoogleGenerativeAI(token);
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+            const geminiPrompt = `You are a Lagos Transit Intelligence Analyst.
+Task: Provide a BRIEF (one paragraph) and SPECIFIC analysis for the category: ${section.label}.
+Instruction: ${section.instruction}
+
+Rules:
+1. Provide ONLY the analysis paragraph.
+2. DO NOT mention statistics.
+3. DO NOT use markdown formatting like stars or dashes.
+4. Be succinct and factual.
+5. If no specific information is found, return exactly: "No specific reports found for this focus area in the current dataset."
+
+Data Context (Top Reports for this Category):
+${contextText}`;
+
+            const result = await model.generateContent(geminiPrompt);
+            let text = result.response.text().trim();
+
+            // Cleanup potential leftovers
+            text = text
+                .replace(/\*/g, '')
+                .replace(/^- /mg, '')
+                .replace(/^Analysis:/i, '')
+                .trim();
+
+            return text || 'No specific reports found for this focus area in the current dataset.';
+        } catch (error: any) {
+            console.error(`Gemini Error for section ${section.id}:`, error);
+            return 'Analysis temporarily unavailable (Gemini).';
+        }
+    }
+
+    // Default to Hugging Face
+    const hf = new HfInference(token);
 
     // Use a much stricter Llama 3 Instruct-style prompt
     const prompt = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -103,33 +146,29 @@ Analysis:`;
             inputs: prompt,
             parameters: {
                 max_new_tokens: 250,
-                temperature: 0.2, // Near zero for factual extraction
+                temperature: 0.2,
                 stop_sequences: ['<|eot_id|>', 'Category:', 'Data Context:']
             }
         });
 
         let text = response.generated_text;
 
-        // Remove the prompt itself if returned (some HF models do this)
         if (text.includes(prompt.slice(-20))) {
             text = text.split(prompt.slice(-20)).pop() || text;
         }
 
-        // Strip everything before the actual analysis
         if (text.includes('Analysis:')) {
             text = text.split('Analysis:').pop() || '';
         }
 
-        // Final cleanup of common artifacts, metadata leakage, and incomplete sentences at the very end
         text = text
-            .replace(/\*/g, '') // Corrected from /\*/f to /\*/g for global replacement
+            .replace(/\*/g, '')
             .replace(/^- /mg, '')
             .replace(/Input Context:[\s\S]*$/i, '')
             .replace(/Output Rules:[\s\S]*$/i, '')
             .replace(/Data Context \(Top Reports for this Category\):[\s\S]*$/i, '')
             .trim();
 
-        // If it still ends with half a sentence (no punctuation), try to trim to last valid punctuation
         if (text.length > 0 && !/[.!?]$/.test(text)) {
             const lastPunc = Math.max(text.lastIndexOf('.'), text.lastIndexOf('!'), text.lastIndexOf('?'));
             if (lastPunc > 0) {
@@ -139,7 +178,7 @@ Analysis:`;
 
         return text || 'No specific reports found for this focus area in the current dataset.';
     } catch (error: any) {
-        console.error(`Error generating section ${section.id}:`, error);
-        return 'Analysis temporarily unavailable.';
+        console.error(`HF Error for section ${section.id}:`, error);
+        return 'Analysis temporarily unavailable (HF).';
     }
 }

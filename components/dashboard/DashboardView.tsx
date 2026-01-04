@@ -58,7 +58,7 @@ export default function Dashboard() {
     const [aiLoading, setAiLoading] = useState(false);
     const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
     const [aiCollapsed, setAiCollapsed] = useState(false);
-    const [hfToken, setHfToken] = useState(process.env.NEXT_PUBLIC_HF_TOKEN || '');
+    const [hfToken, setHfToken] = useState(process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_HF_TOKEN || '');
     const [showTokenInput, setShowTokenInput] = useState(false);
 
     useEffect(() => {
@@ -436,7 +436,7 @@ export default function Dashboard() {
                                 <Sparkles className="h-5 md:h-6 w-5 md:w-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-lg md:text-xl font-bold text-white">Llama-3.1 Issue Intelligence</h3>
+                                <h3 className="text-lg md:text-xl font-bold text-white">Gemini 1.5 Pro Intelligence</h3>
                                 <p className="text-sky-100 text-[10px] md:text-sm font-medium">Auditing hotspots, conduct, safety, and infrastructure health</p>
                             </div>
                         </div>
@@ -460,7 +460,7 @@ export default function Dashboard() {
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 md:h-3.5 md:w-3.5 text-slate-400" />
                                         <input
                                             type="password"
-                                            placeholder="HF Token"
+                                            placeholder="Gemini or HF API Key"
                                             className="pl-8 md:pl-9 pr-3 md:pr-4 py-2 bg-white rounded-xl text-[10px] md:text-xs font-bold border-none focus:ring-2 focus:ring-sky-300 transition-all w-full md:w-48 shadow-inner"
                                             value={hfToken}
                                             onChange={(e) => setHfToken(e.target.value)}
