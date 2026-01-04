@@ -710,8 +710,8 @@ function StatCard({ title, value, icon, description }: { title: string, value: s
         <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl space-y-1.5 md:space-y-2 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300">
             <div className="flex items-center justify-between">
                 <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-widest">{title}</span>
-                <div className="p-1.5 md:p-2 bg-slate-50 rounded-lg shrink-0">
-                    {React.cloneElement(icon as React.ReactElement, { className: (icon as React.ReactElement).props.className + " h-4 w-4 md:h-5 md:w-5" })}
+                <div className="p-1.5 md:p-2 bg-slate-50 rounded-lg shrink-0 [&_svg]:h-4 [&_svg]:w-4 md:[&_svg]:h-5 md:[&_svg]:w-5">
+                    {icon}
                 </div>
             </div>
             <div className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
