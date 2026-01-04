@@ -205,42 +205,42 @@ export default function Dashboard() {
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-900 font-sans">
             <div className="mx-auto max-w-7xl space-y-8">
                 {/* Hero Section */}
-                <div className="relative h-[300px] md:h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl mb-8 group">
+                <div className="relative min-h-[400px] md:h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl mb-8 group">
                     <img
                         src="/brt-bus.png"
                         alt="Lagos BRT Bus"
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent p-6 md:p-12 flex flex-col justify-center">
-                        <div className="flex items-center gap-4 md:gap-6 mb-4 md:mb-8 animate-in fade-in slide-in-from-left-8 duration-700">
-                            <div className="bg-white p-2 md:p-4 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/20">
+                    <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-slate-900/95 via-slate-900/70 md:via-slate-900/40 to-slate-900/40 md:to-transparent p-6 md:p-12 flex flex-col justify-center items-center md:items-start text-center md:text-left">
+                        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 mb-6 md:mb-8 animate-in fade-in slide-in-from-top-8 md:slide-in-from-left-8 duration-700">
+                            <div className="bg-white p-2.5 md:p-4 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/20">
                                 <img
                                     src="/lagos-logo.png"
                                     alt="Lagos State Logo"
-                                    className="h-12 w-12 md:h-24 md:w-24 object-contain"
+                                    className="h-14 w-14 md:h-24 md:w-24 object-contain"
                                 />
                             </div>
-                            <div className="h-10 md:h-16 w-px bg-white/20" />
+                            <div className="h-px md:h-16 w-12 md:w-px bg-white/20" />
                             <div>
-                                <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white mb-1 md:mb-2 uppercase italic leading-none">
+                                <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-1 md:mb-2 uppercase italic leading-none">
                                     BRT <span className="text-sky-400">PULSE</span>
                                 </h1>
-                                <p className="text-sky-100 text-[10px] md:text-lg font-bold tracking-widest uppercase flex items-center gap-2">
+                                <p className="text-sky-100 text-[10px] md:text-lg font-bold tracking-widest uppercase flex items-center justify-center md:justify-start gap-2">
                                     <MapPin className="h-3 md:h-5 w-3 md:w-5 text-sky-400" /> Lagos State Transit Intelligence
                                 </p>
                             </div>
                         </div>
-                        <p className="max-w-2xl text-slate-200 text-sm md:text-lg font-medium leading-relaxed drop-shadow-md mb-4 line-clamp-2 md:line-clamp-none">
+                        <p className="max-w-2xl text-slate-200 text-sm md:text-lg font-medium leading-relaxed drop-shadow-md mb-6 md:mb-4 px-4 md:px-0">
                             Monitoring passenger sentiment, operational visibility and engagement trends on Nigeria's largest BRT network.
                         </p>
                         {latestDate && (
-                            <div className="flex items-center gap-2 text-sky-300 text-[9px] md:text-xs font-bold uppercase tracking-[0.2em] bg-sky-950/30 w-fit px-3 md:px-4 py-1.5 md:py-2 rounded-lg backdrop-blur-sm border border-sky-500/20">
-                                <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                                <span className="hidden xs:inline">Latest Data: </span>{latestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            <div className="flex items-center gap-2 text-sky-300 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] bg-sky-950/40 w-fit px-4 py-2 rounded-lg backdrop-blur-md border border-sky-500/20">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>Latest Data: {latestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
                         )}
                     </div>
-                    <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 flex items-center gap-4 bg-white/10 backdrop-blur-md px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl border border-white/20 shadow-xl">
+                    <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 flex items-center gap-3 md:gap-4 bg-white/10 backdrop-blur-md px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl border border-white/20 shadow-xl">
                         <div className="text-right">
                             <p className="text-white font-black text-lg md:text-xl leading-tight">853+</p>
                             <p className="text-sky-200 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
@@ -405,7 +405,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <StatCard
                         title="Total Engagements"
                         value={totals.engagements.toLocaleString()}
@@ -423,12 +423,6 @@ export default function Dashboard() {
                         value={`${filteredData.length > 0 ? Math.round((totals.negative / filteredData.length) * 100) : 0}%`}
                         icon={<TrendingDown className="text-rose-600" />}
                         description={`${totals.negative} negative records`}
-                    />
-                    <StatCard
-                        title="Critical Issues"
-                        value={totals.negative.toLocaleString()}
-                        icon={<AlertCircle className="text-rose-500" />}
-                        description="Negative sentiment reports"
                     />
                 </div>
 
