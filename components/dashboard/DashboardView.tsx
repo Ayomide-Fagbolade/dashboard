@@ -58,7 +58,7 @@ export default function Dashboard() {
     const [aiLoading, setAiLoading] = useState(false);
     const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
     const [aiCollapsed, setAiCollapsed] = useState(false);
-    const [hfToken, setHfToken] = useState(process.env.NEXT_PUBLIC_GEMINI_KEY || process.env.NEXT_PUBLIC_HF_TOKEN || '');
+    const [apiKey, setApiKey] = useState(process.env.NEXT_PUBLIC_GEMINI_KEY || '');
     const [showTokenInput, setShowTokenInput] = useState(false);
 
     useEffect(() => {
@@ -128,7 +128,7 @@ export default function Dashboard() {
     }, { engagements: 0, replies: 0, positive: 0, negative: 0, neutral: 0 });
 
     const handleGenerateSummary = async () => {
-        if (!hfToken) {
+        if (!apiKey) {
             setShowTokenInput(true);
             return;
         }
@@ -143,7 +143,7 @@ export default function Dashboard() {
         try {
             for (const section of REPORT_SECTIONS) {
                 setActiveSectionId(section.id);
-                const content = await generateReportSection(section, filteredData, sentimentSummary, topTags, hfToken);
+                const content = await generateReportSection(section, filteredData, sentimentSummary, topTags, apiKey);
                 setAiResults(prev => ({ ...prev, [section.id]: content }));
             }
         } catch (error: any) {
@@ -460,10 +460,10 @@ export default function Dashboard() {
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 md:h-3.5 md:w-3.5 text-slate-400" />
                                         <input
                                             type="password"
-                                            placeholder="Gemini or HF API Key"
+                                            placeholder="Gemini API Key"
                                             className="pl-8 md:pl-9 pr-3 md:pr-4 py-2 bg-white rounded-xl text-[10px] md:text-xs font-bold border-none focus:ring-2 focus:ring-sky-300 transition-all w-full md:w-48 shadow-inner"
-                                            value={hfToken}
-                                            onChange={(e) => setHfToken(e.target.value)}
+                                            value={apiKey}
+                                            onChange={(e) => setApiKey(e.target.value)}
                                         />
                                     </div>
                                     <button
