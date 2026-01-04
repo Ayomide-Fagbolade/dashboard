@@ -138,7 +138,7 @@ export default function Dashboard() {
         setShowTokenInput(false);
 
         const sentimentSummary = `Positive: ${totals.positive}, Negative: ${totals.negative}, Neutral: ${totals.neutral}`;
-        const topTags = tagsDistribution.slice(0, 5).map(t => `${t.tag} (${t.count})`).join(', ');
+        const topTags = tagsDistribution.slice(0, 5).map(t => `${t.tag} (${t.total})`).join(', ');
 
         try {
             for (const section of REPORT_SECTIONS) {
@@ -570,8 +570,9 @@ export default function Dashboard() {
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#1e293b' }}
                                             itemStyle={{ fontSize: '12px', fontWeight: 500 }}
-                                            labelFormatter={(label) => {
-                                                const date = new Date(label);
+                                            labelFormatter={(l) => {
+                                                if (!l) return '';
+                                                const date = new Date(l);
                                                 return aggregation === 'daily'
                                                     ? date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
                                                     : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -607,7 +608,7 @@ export default function Dashboard() {
                                     <YAxis stroke="#94a3b8" fontSize={12} />
                                     <Tooltip
                                         content={({ active, payload, label }) => {
-                                            if (active && payload && payload.length) {
+                                            if (active && payload && payload.length && label) {
                                                 const date = new Date(label);
                                                 const dateStr = aggregation === 'daily'
                                                     ? date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
