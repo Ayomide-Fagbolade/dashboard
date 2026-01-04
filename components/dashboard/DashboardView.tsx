@@ -205,53 +205,53 @@ export default function Dashboard() {
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-900 font-sans">
             <div className="mx-auto max-w-7xl space-y-8">
                 {/* Hero Section */}
-                <div className="relative h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl mb-8 group">
+                <div className="relative h-[300px] md:h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl mb-8 group">
                     <img
                         src="/brt-bus.png"
                         alt="Lagos BRT Bus"
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent p-12 flex flex-col justify-center">
-                        <div className="flex items-center gap-6 mb-8 animate-in fade-in slide-in-from-left-8 duration-700">
-                            <div className="bg-white p-4 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/20">
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent p-6 md:p-12 flex flex-col justify-center">
+                        <div className="flex items-center gap-4 md:gap-6 mb-4 md:mb-8 animate-in fade-in slide-in-from-left-8 duration-700">
+                            <div className="bg-white p-2 md:p-4 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/20">
                                 <img
                                     src="/lagos-logo.png"
                                     alt="Lagos State Logo"
-                                    className="h-24 w-24 object-contain"
+                                    className="h-12 w-12 md:h-24 md:w-24 object-contain"
                                 />
                             </div>
-                            <div className="h-16 w-px bg-white/20" />
+                            <div className="h-10 md:h-16 w-px bg-white/20" />
                             <div>
-                                <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-2 uppercase italic">
+                                <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white mb-1 md:mb-2 uppercase italic leading-none">
                                     BRT <span className="text-sky-400">PULSE</span>
                                 </h1>
-                                <p className="text-sky-100 text-lg font-bold tracking-widest uppercase flex items-center gap-2">
-                                    <MapPin className="h-5 w-5 text-sky-400" /> Lagos State Transit Intelligence
+                                <p className="text-sky-100 text-[10px] md:text-lg font-bold tracking-widest uppercase flex items-center gap-2">
+                                    <MapPin className="h-3 md:h-5 w-3 md:w-5 text-sky-400" /> Lagos State Transit Intelligence
                                 </p>
                             </div>
                         </div>
-                        <p className="max-w-2xl text-slate-200 text-lg font-medium leading-relaxed drop-shadow-md mb-4">
+                        <p className="max-w-2xl text-slate-200 text-sm md:text-lg font-medium leading-relaxed drop-shadow-md mb-4 line-clamp-2 md:line-clamp-none">
                             Monitoring passenger sentiment, operational visibility and engagement trends on Nigeria's largest BRT network.
                         </p>
                         {latestDate && (
-                            <div className="flex items-center gap-2 text-sky-300 text-xs font-bold uppercase tracking-[0.2em] bg-sky-950/30 w-fit px-4 py-2 rounded-lg backdrop-blur-sm border border-sky-500/20">
-                                <Calendar className="h-3.5 w-3.5" />
-                                Latest Data: {latestDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                            <div className="flex items-center gap-2 text-sky-300 text-[9px] md:text-xs font-bold uppercase tracking-[0.2em] bg-sky-950/30 w-fit px-3 md:px-4 py-1.5 md:py-2 rounded-lg backdrop-blur-sm border border-sky-500/20">
+                                <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                                <span className="hidden xs:inline">Latest Data: </span>{latestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
                         )}
                     </div>
-                    <div className="absolute bottom-10 right-10 flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20 shadow-xl">
+                    <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 flex items-center gap-4 bg-white/10 backdrop-blur-md px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl border border-white/20 shadow-xl">
                         <div className="text-right">
-                            <p className="text-white font-black text-xl leading-tight">853+</p>
-                            <p className="text-sky-200 text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
+                            <p className="text-white font-black text-lg md:text-xl leading-tight">853+</p>
+                            <p className="text-sky-200 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Sub-Header / Controls */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-8">
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto overflow-x-auto no-scrollbar">
                             <TimeframeButton
                                 active={timeframe === 'all'}
                                 onClick={() => setTimeframe('all')}
@@ -264,9 +264,9 @@ export default function Dashboard() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-between md:justify-start gap-4">
                             <div className="h-8 w-px bg-slate-200 hidden md:block" />
-                            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm grow md:grow-0">
                                 <TimeframeButton
                                     active={aggregation === 'daily'}
                                     onClick={() => setAggregation('daily')}
@@ -281,58 +281,56 @@ export default function Dashboard() {
                         </div>
 
                         {timeframe === 'custom' && (
-                            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 w-full md:w-auto">
                                 <input
                                     type="date"
-                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer"
+                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer grow shrink min-w-0"
                                     value={customRange.start}
                                     onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
                                 />
-                                <span className="text-slate-300 font-bold">→</span>
+                                <span className="text-slate-300 font-bold shrink-0">→</span>
                                 <input
                                     type="date"
-                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer"
+                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer grow shrink min-w-0"
                                     value={customRange.end}
                                     onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
                                 />
                             </div>
                         )}
-
-
                     </div>
                 </div>
 
                 {/* Filter Controls Area */}
-                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm transition-all duration-500">
-                    <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-sky-500 p-2 rounded-xl">
+                <div className="bg-white border border-slate-200 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm transition-all duration-500">
+                    <div className="p-6 md:p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            <div className="bg-sky-500 p-2 rounded-xl shrink-0">
                                 <Sparkles className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-slate-800">Advanced Analytics Filter</h3>
-                                <p className="text-slate-500 text-sm font-medium">Switch between broad tags or deep-dive AI topics</p>
+                                <h3 className="text-lg md:text-xl font-bold text-slate-800">Advanced Analytics Filter</h3>
+                                <p className="text-slate-500 text-xs md:text-sm font-medium">Switch between broad tags or deep-dive AI topics</p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                        <div className="flex items-center justify-between md:justify-end gap-4">
+                            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar">
                                 <button
                                     onClick={() => setFilterMode('tags')}
-                                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filterMode === 'tags' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterMode === 'tags' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     By Tags
                                 </button>
                                 <button
                                     onClick={() => setFilterMode('topics')}
-                                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filterMode === 'topics' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap ${filterMode === 'topics' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     By Topics (AI)
                                 </button>
                             </div>
                             <button
                                 onClick={() => setFilterCollapsed(!filterCollapsed)}
-                                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400 transition-colors"
+                                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400 transition-colors shrink-0"
                             >
                                 {filterCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
                             </button>
@@ -340,7 +338,7 @@ export default function Dashboard() {
                     </div>
 
                     {!filterCollapsed && (
-                        <div className="p-8 bg-slate-50/30 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="p-6 md:p-8 bg-slate-50/30 animate-in fade-in slide-in-from-top-4 duration-500">
                             {filterMode === 'tags' ? (
                                 <div className="flex flex-wrap gap-2">
                                     {allTags.map(tag => (
@@ -435,46 +433,46 @@ export default function Dashboard() {
                 </div>
 
                 {/* AI Summary Section */}
-                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-                    <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-8 py-6 flex items-center justify-between">
+                <div className="bg-white border border-slate-200 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-6 md:px-8 py-5 md:py-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-3">
                             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                                <Sparkles className="h-6 w-6 text-white" />
+                                <Sparkles className="h-5 md:h-6 w-5 md:w-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-white">Llama-3.1 Issue Intelligence</h3>
-                                <p className="text-sky-100 text-sm font-medium">Auditing hotspots, conduct, safety, and infrastructure health</p>
+                                <h3 className="text-lg md:text-xl font-bold text-white">Llama-3.1 Issue Intelligence</h3>
+                                <p className="text-sky-100 text-[10px] md:text-sm font-medium">Auditing hotspots, conduct, safety, and infrastructure health</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 md:gap-4 justify-between md:justify-end">
                             {(Object.keys(aiResults).length > 0 || aiLoading) && (
                                 <button
                                     onClick={() => setAiCollapsed(!aiCollapsed)}
-                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors flex items-center gap-2"
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors flex items-center gap-2 grow md:grow-0 justify-center md:justify-start bg-white/5 md:bg-transparent"
                                     title={aiCollapsed ? "Expand Analysis" : "Collapse Analysis"}
                                 >
-                                    <span className="text-xs font-bold uppercase tracking-widest hidden md:block">
-                                        {aiCollapsed ? 'Expand' : 'Collapse'}
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                        {aiCollapsed ? 'Expand' : 'Collapse'} Report
                                     </span>
-                                    {aiCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+                                    {aiCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                                 </button>
                             )}
                             <div className="h-6 w-px bg-white/20 hidden md:block" />
                             {showTokenInput ? (
-                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
-                                    <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 grow md:grow-0">
+                                    <div className="relative grow md:grow-0">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 md:h-3.5 md:w-3.5 text-slate-400" />
                                         <input
                                             type="password"
-                                            placeholder="HF Token (hf_...)"
-                                            className="pl-9 pr-4 py-2 bg-white rounded-xl text-xs font-bold border-none focus:ring-2 focus:ring-sky-300 transition-all w-48 shadow-inner"
+                                            placeholder="HF Token"
+                                            className="pl-8 md:pl-9 pr-3 md:pr-4 py-2 bg-white rounded-xl text-[10px] md:text-xs font-bold border-none focus:ring-2 focus:ring-sky-300 transition-all w-full md:w-48 shadow-inner"
                                             value={hfToken}
                                             onChange={(e) => setHfToken(e.target.value)}
                                         />
                                     </div>
                                     <button
                                         onClick={handleGenerateSummary}
-                                        className="bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors shadow-lg"
+                                        className="bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-[10px] md:text-xs font-black transition-colors shadow-lg uppercase tracking-wider"
                                     >
                                         Go
                                     </button>
@@ -483,7 +481,7 @@ export default function Dashboard() {
                                 <button
                                     onClick={handleGenerateSummary}
                                     disabled={aiLoading}
-                                    className="bg-white/20 hover:bg-white/30 text-white px-6 py-2.5 rounded-xl text-sm font-bold backdrop-blur-md transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                                    className="bg-white/20 hover:bg-white/30 text-white px-4 md:px-6 py-2.5 rounded-xl text-xs md:text-sm font-black backdrop-blur-md transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 grow md:grow-0 uppercase tracking-wider"
                                 >
                                     {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                     {Object.keys(aiResults).length > 0 ? 'Regenerate Analysis' : 'Generate Full Report'}
@@ -492,15 +490,15 @@ export default function Dashboard() {
                         </div>
                     </div>
                     {!aiCollapsed && (Object.keys(aiResults).length > 0 || aiLoading) && (
-                        <div className="p-8 space-y-8 animate-in fade-in duration-500">
+                        <div className="p-6 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500">
                             {aiLoading && !activeSectionId && (
-                                <div className="flex items-center gap-4 py-8 animate-pulse">
-                                    <div className="h-2 w-2 bg-sky-500 rounded-full" />
-                                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Initializing AI Agents...</p>
+                                <div className="flex items-center gap-3 md:gap-4 py-4 md:py-8 animate-pulse">
+                                    <div className="h-1.5 md:h-2 w-1.5 md:w-2 bg-sky-500 rounded-full" />
+                                    <p className="text-[10px] md:text-sm font-bold text-slate-500 uppercase tracking-widest">Initializing AI Agents...</p>
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                                 {REPORT_SECTIONS.map((section) => {
                                     const content = aiResults[section.id];
                                     const isActive = activeSectionId === section.id;
@@ -538,7 +536,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                     <div className="lg:col-span-2">
                         <SectionCard title="Sentiment Distribution Over Time">
                             <div className="h-[350px] w-full">
@@ -715,15 +713,15 @@ function TimeframeButton({ active, onClick, label }: { active: boolean, onClick:
 
 function StatCard({ title, value, icon, description }: { title: string, value: string, icon: React.ReactNode, description: string }) {
     return (
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-2 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300">
+        <div className="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl space-y-1.5 md:space-y-2 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300">
             <div className="flex items-center justify-between">
-                <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">{title}</span>
-                <div className="p-2 bg-slate-50 rounded-lg">
-                    {icon}
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-widest">{title}</span>
+                <div className="p-1.5 md:p-2 bg-slate-50 rounded-lg shrink-0">
+                    {React.cloneElement(icon as React.ReactElement, { className: (icon as React.ReactElement).props.className + " h-4 w-4 md:h-5 md:w-5" })}
                 </div>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
-            <p className="text-xs text-slate-400 font-medium">{description}</p>
+            <div className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
+            <p className="text-[10px] md:text-xs text-slate-400 font-medium line-clamp-1">{description}</p>
         </div>
     );
 }
@@ -731,10 +729,10 @@ function StatCard({ title, value, icon, description }: { title: string, value: s
 function SectionCard({ title, children }: { title: string, children: React.ReactNode }) {
     return (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
-            <div className="border-b border-slate-100 px-6 py-5 bg-slate-50/50">
-                <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+            <div className="border-b border-slate-100 px-5 md:px-6 py-4 md:py-5 bg-slate-50/50 uppercase tracking-widest">
+                <h3 className="text-sm md:text-lg font-black text-slate-800">{title}</h3>
             </div>
-            <div className="p-6">
+            <div className="p-4 md:p-6">
                 {children}
             </div>
         </div>
