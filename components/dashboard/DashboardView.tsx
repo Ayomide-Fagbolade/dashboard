@@ -239,11 +239,13 @@ export default function Dashboard() {
                                 <span>Latest Data: {latestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
                         )}
-                    </div>
-                    <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 flex items-center gap-3 md:gap-4 bg-white/10 backdrop-blur-md px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl border border-white/20 shadow-xl">
-                        <div className="text-right">
-                            <p className="text-white font-black text-lg md:text-xl leading-tight">853+</p>
-                            <p className="text-sky-200 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
+
+                        {/* Active Reports Widget - Integrated for Mobile, Absolute for Desktop */}
+                        <div className="md:absolute md:bottom-10 md:right-10 flex items-center gap-3 md:gap-4 bg-white/10 backdrop-blur-md px-4 py-2 md:px-6 md:py-4 rounded-xl md:rounded-2xl border border-white/20 shadow-xl mt-6 md:mt-0">
+                            <div className="text-center md:text-right">
+                                <p className="text-white font-black text-lg md:text-xl leading-tight">853+</p>
+                                <p className="text-sky-200 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
+                            </div>
                         </div>
                     </div>
                 </div>
