@@ -1,4 +1,4 @@
-import { parse } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 
 export interface RawData {
   'Date of Tweet': string;
@@ -7,6 +7,7 @@ export interface RawData {
   'Number of Replies': string | number;
   tags: string;
   merged_label: string;
+  merged_description: string;
 }
 
 export interface ProcessedSentiment {
@@ -26,16 +27,24 @@ export interface ProcessedTag {
   total: number;
 }
 
-export const processSentimentOverTime = (data: RawData[]): ProcessedSentiment[] => {
+export const processSentimentOverTime = (data: RawData[], aggregation: 'daily' | 'monthly' = 'monthly'): ProcessedSentiment[] => {
   const grouped: Record<string, ProcessedSentiment> = {};
 
   data.forEach((row) => {
-    const dateStr = row['Date of Tweet'];
-    if (!dateStr) return;
+    const rawDate = row['Date of Tweet'];
+    if (!rawDate) return;
 
-    if (!grouped[dateStr]) {
-      grouped[dateStr] = {
-        date: dateStr,
+    const dateObj = parseISO(rawDate);
+    if (isNaN(dateObj.getTime())) return;
+
+    // Grouping key based on aggregation
+    const groupKey = aggregation === 'daily'
+      ? rawDate
+      : format(dateObj, 'yyyy-MM');
+
+    if (!grouped[groupKey]) {
+      grouped[groupKey] = {
+        date: groupKey,
         positive: 0,
         negative: 0,
         neutral: 0,
@@ -45,12 +54,12 @@ export const processSentimentOverTime = (data: RawData[]): ProcessedSentiment[] 
     }
 
     const sentiment = row['sentiment text']?.toLowerCase();
-    if (sentiment === 'positive') grouped[dateStr].positive++;
-    else if (sentiment === 'negative') grouped[dateStr].negative++;
-    else if (sentiment === 'neutral') grouped[dateStr].neutral++;
+    if (sentiment === 'positive') grouped[groupKey].positive++;
+    else if (sentiment === 'negative') grouped[groupKey].negative++;
+    else if (sentiment === 'neutral') grouped[groupKey].neutral++;
 
-    grouped[dateStr].totalEngagements += Number(row['Total Engagements']) || 0;
-    grouped[dateStr].totalReplies += Number(row['Number of Replies']) || 0;
+    grouped[groupKey].totalEngagements += Number(row['Total Engagements']) || 0;
+    grouped[groupKey].totalReplies += Number(row['Number of Replies']) || 0;
   });
 
   return Object.values(grouped).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

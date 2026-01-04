@@ -14,27 +14,52 @@ import {
     ProcessedSentiment,
     ProcessedTag
 } from '@/lib/data-processor';
+import { generateReportSection, REPORT_SECTIONS } from '@/lib/ai-service';
 import {
     Users,
     MessageSquare,
     TrendingUp,
+    TrendingDown,
     AlertCircle,
-    MapPin
+    MapPin,
+    Calendar,
+    Sparkles,
+    Loader2,
+    Lock,
+    ChevronUp,
+    ChevronDown
 } from 'lucide-react';
+import { subDays, isAfter, parseISO, max } from 'date-fns';
 
 const COLORS = {
-    positive: '#10b981',
-    negative: '#ef4444',
-    neutral: '#f59e0b',
-    engagements: '#6366f1',
-    replies: '#ec4899'
+    positive: '#0ea5e9', // Sky Blue for positive
+    negative: '#f43f5e', // Rose for negative
+    neutral: '#94a3b8',  // Slate for neutral
+    engagements: '#0ea5e9',
+    replies: '#38bdf8'
 };
 
 export default function Dashboard() {
     const [data, setData] = useState<RawData[]>([]);
+    const [filteredData, setFilteredData] = useState<RawData[]>([]);
     const [sentimentOverTime, setSentimentOverTime] = useState<ProcessedSentiment[]>([]);
     const [tagsDistribution, setTagsDistribution] = useState<ProcessedTag[]>([]);
+    const [timeframe, setTimeframe] = useState('all');
+    const [customRange, setCustomRange] = useState({ start: '', end: '' });
+    const [filterMode, setFilterMode] = useState<'tags' | 'topics'>('tags');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+    const [filterCollapsed, setFilterCollapsed] = useState(false);
+    const [aggregation, setAggregation] = useState<'daily' | 'monthly'>('monthly');
     const [loading, setLoading] = useState(true);
+
+    // AI States
+    const [aiResults, setAiResults] = useState<Record<string, string>>({});
+    const [aiLoading, setAiLoading] = useState(false);
+    const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+    const [aiCollapsed, setAiCollapsed] = useState(false);
+    const [hfToken, setHfToken] = useState(process.env.NEXT_PUBLIC_HF_TOKEN || '');
+    const [showTokenInput, setShowTokenInput] = useState(false);
 
     useEffect(() => {
         fetch('/lean_df.csv')
@@ -46,26 +71,53 @@ export default function Dashboard() {
                     complete: (results) => {
                         const rawData = results.data as RawData[];
                         setData(rawData);
-                        setSentimentOverTime(processSentimentOverTime(rawData));
-                        setTagsDistribution(processTagsDistribution(rawData));
                         setLoading(false);
                     },
                 });
             });
     }, []);
 
-    if (loading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-400">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-zinc-800 border-t-zinc-200" />
-                    <p className="text-sm font-medium">Loading Dashboard Data...</p>
-                </div>
-            </div>
-        );
-    }
+    useEffect(() => {
+        if (data.length === 0) return;
 
-    const totals = data.reduce((acc, curr) => {
+        let filtered = data;
+        if (timeframe === 'custom') {
+            if (customRange.start && customRange.end) {
+                const start = parseISO(customRange.start);
+                const end = parseISO(customRange.end);
+                filtered = filtered.filter(d => {
+                    const dDate = parseISO(d['Date of Tweet']);
+                    if (isNaN(dDate.getTime())) return false;
+                    return (isAfter(dDate, start) || dDate.getTime() === start.getTime()) &&
+                        (isAfter(end, dDate) || dDate.getTime() === end.getTime());
+                });
+            }
+        }
+
+        if (filterMode === 'tags' && selectedTags.length > 0) {
+            filtered = filtered.filter(d => {
+                const tags = d.tags?.split(',').map(t => t.trim().toUpperCase()) || [];
+                // If "FARES" is selected, it should match both "FARES" and "FAIRS" (normalized to FARES)
+                return selectedTags.some(selectedTag => {
+                    const normalizedSelected = selectedTag.toUpperCase();
+                    return tags.includes(normalizedSelected) ||
+                        (normalizedSelected === 'FARES' && tags.includes('FAIRS'));
+                });
+            });
+        } else if (filterMode === 'topics' && selectedTopics.length > 0) {
+            filtered = filtered.filter(d => {
+                const label = d.merged_label === 'Noise' ? 'Others' : d.merged_label;
+                return label && selectedTopics.includes(label);
+            });
+        }
+
+        setFilteredData(filtered);
+        setSentimentOverTime(processSentimentOverTime(filtered, aggregation));
+        setTagsDistribution(processTagsDistribution(filtered));
+        setAiResults({}); // Reset summary when filters change
+    }, [data, timeframe, customRange, selectedTags, selectedTopics, filterMode, aggregation]);
+
+    const totals = filteredData.reduce((acc, curr) => {
         acc.engagements += Number(curr['Total Engagements']) || 0;
         acc.replies += Number(curr['Number of Replies']) || 0;
         const s = curr['sentiment text']?.toLowerCase();
@@ -75,110 +127,544 @@ export default function Dashboard() {
         return acc;
     }, { engagements: 0, replies: 0, positive: 0, negative: 0, neutral: 0 });
 
+    const handleGenerateSummary = async () => {
+        if (!hfToken) {
+            setShowTokenInput(true);
+            return;
+        }
+
+        setAiLoading(true);
+        setAiResults({});
+        setShowTokenInput(false);
+
+        const sentimentSummary = `Positive: ${totals.positive}, Negative: ${totals.negative}, Neutral: ${totals.neutral}`;
+        const topTags = tagsDistribution.slice(0, 5).map(t => `${t.tag} (${t.count})`).join(', ');
+
+        try {
+            for (const section of REPORT_SECTIONS) {
+                setActiveSectionId(section.id);
+                const content = await generateReportSection(section, filteredData, sentimentSummary, topTags, hfToken);
+                setAiResults(prev => ({ ...prev, [section.id]: content }));
+            }
+        } catch (error: any) {
+            console.error('AI Generation Error:', error);
+        } finally {
+            setAiLoading(false);
+            setActiveSectionId(null);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-400">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
+                    <p className="text-sm font-medium">Loading Dashboard Data...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const allDates = data.map(d => parseISO(d['Date of Tweet'])).filter(d => !isNaN(d.getTime()));
+    const latestDate = allDates.length > 0 ? max(allDates) : null;
+
+    const allTags = Array.from(new Set(
+        data.flatMap(d => d.tags?.split(',').map(t => {
+            const tag = t.trim().toUpperCase();
+            return tag === 'FAIRS' ? 'FARES' : tag;
+        }) || [])
+    )).filter(Boolean).sort();
+
+    const allTopics = Array.from(new Set(data.map(d => {
+        const label = d.merged_label;
+        return label === 'Noise' ? 'Others' : label;
+    }))).filter(Boolean).map(label => {
+        const firstMatch = data.find(d => {
+            const l = d.merged_label === 'Noise' ? 'Others' : d.merged_label;
+            return l === label;
+        });
+        return {
+            label,
+            description: firstMatch?.merged_description || ''
+        };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
+    };
+
+    const toggleTopic = (topic: string) => {
+        setSelectedTopics(prev =>
+            prev.includes(topic) ? prev.filter(t => t !== topic) : [...prev, topic]
+        );
+    };
+
     return (
-        <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-zinc-100 font-sans">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-900 font-sans">
             <div className="mx-auto max-w-7xl space-y-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white mb-1">
-                            Lagos State BRT Dashboard
-                        </h1>
-                        <p className="text-zinc-400 flex items-center gap-2">
-                            <MapPin className="h-4 w-4" /> Transit Analytics & Sentiment Monitoring
+                {/* Hero Section */}
+                <div className="relative h-[400px] w-full rounded-3xl overflow-hidden shadow-2xl mb-8 group">
+                    <img
+                        src="/brt-bus.png"
+                        alt="Lagos BRT Bus"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent p-12 flex flex-col justify-center">
+                        <div className="flex items-center gap-6 mb-8 animate-in fade-in slide-in-from-left-8 duration-700">
+                            <div className="bg-white p-4 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/20">
+                                <img
+                                    src="/lagos-logo.png"
+                                    alt="Lagos State Logo"
+                                    className="h-24 w-24 object-contain"
+                                />
+                            </div>
+                            <div className="h-16 w-px bg-white/20" />
+                            <div>
+                                <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-2 uppercase italic">
+                                    BRT <span className="text-sky-400">PULSE</span>
+                                </h1>
+                                <p className="text-sky-100 text-lg font-bold tracking-widest uppercase flex items-center gap-2">
+                                    <MapPin className="h-5 w-5 text-sky-400" /> Lagos State Transit Intelligence
+                                </p>
+                            </div>
+                        </div>
+                        <p className="max-w-2xl text-slate-200 text-lg font-medium leading-relaxed drop-shadow-md mb-4">
+                            Monitoring passenger sentiment, operational visibility and engagement trends on Nigeria's largest BRT network.
                         </p>
+                        {latestDate && (
+                            <div className="flex items-center gap-2 text-sky-300 text-xs font-bold uppercase tracking-[0.2em] bg-sky-950/30 w-fit px-4 py-2 rounded-lg backdrop-blur-sm border border-sky-500/20">
+                                <Calendar className="h-3.5 w-3.5" />
+                                Latest Data: {latestDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-3 bg-zinc-900 px-4 py-2 rounded-lg border border-zinc-800">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-medium text-zinc-300">Live Data Feed</span>
+                    <div className="absolute bottom-10 right-10 flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20 shadow-xl">
+                        <div className="text-right">
+                            <p className="text-white font-black text-xl leading-tight">853+</p>
+                            <p className="text-sky-200 text-[10px] font-bold uppercase tracking-widest">Active Reports</p>
+                        </div>
                     </div>
                 </div>
 
+                {/* Sub-Header / Controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-8">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                            <TimeframeButton
+                                active={timeframe === 'all'}
+                                onClick={() => setTimeframe('all')}
+                                label="All Time"
+                            />
+                            <TimeframeButton
+                                active={timeframe === 'custom'}
+                                onClick={() => setTimeframe('custom')}
+                                label="Custom Range"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="h-8 w-px bg-slate-200 hidden md:block" />
+                            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                                <TimeframeButton
+                                    active={aggregation === 'daily'}
+                                    onClick={() => setAggregation('daily')}
+                                    label="Daily"
+                                />
+                                <TimeframeButton
+                                    active={aggregation === 'monthly'}
+                                    onClick={() => setAggregation('monthly')}
+                                    label="Monthly"
+                                />
+                            </div>
+                        </div>
+
+                        {timeframe === 'custom' && (
+                            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                <input
+                                    type="date"
+                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer"
+                                    value={customRange.start}
+                                    onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                                />
+                                <span className="text-slate-300 font-bold">→</span>
+                                <input
+                                    type="date"
+                                    className="px-3 py-1 text-xs font-bold border-none focus:ring-0 text-slate-600 bg-transparent cursor-pointer"
+                                    value={customRange.end}
+                                    onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                                />
+                            </div>
+                        )}
+
+
+                    </div>
+                </div>
+
+                {/* Filter Controls Area */}
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm transition-all duration-500">
+                    <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-sky-500 p-2 rounded-xl">
+                                <Sparkles className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Advanced Analytics Filter</h3>
+                                <p className="text-slate-500 text-sm font-medium">Switch between broad tags or deep-dive AI topics</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                                <button
+                                    onClick={() => setFilterMode('tags')}
+                                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filterMode === 'tags' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    By Tags
+                                </button>
+                                <button
+                                    onClick={() => setFilterMode('topics')}
+                                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filterMode === 'topics' ? 'bg-white text-sky-600 shadow-md translate-y-[-1px]' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    By Topics (AI)
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => setFilterCollapsed(!filterCollapsed)}
+                                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400 transition-colors"
+                            >
+                                {filterCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {!filterCollapsed && (
+                        <div className="p-8 bg-slate-50/30 animate-in fade-in slide-in-from-top-4 duration-500">
+                            {filterMode === 'tags' ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {allTags.map(tag => (
+                                        <button
+                                            key={tag}
+                                            onClick={() => toggleTag(tag)}
+                                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 border ${selectedTags.includes(tag)
+                                                ? 'bg-sky-500 text-white border-sky-500 shadow-lg shadow-sky-200'
+                                                : 'bg-white text-slate-500 border-slate-200 hover:border-sky-300 hover:text-sky-500'
+                                                }`}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                    {selectedTags.length > 0 && (
+                                        <button
+                                            onClick={() => setSelectedTags([])}
+                                            className="px-4 py-2 rounded-full text-xs font-bold text-rose-500 hover:bg-rose-50 transition-colors"
+                                        >
+                                            Clear Selection
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {allTopics.map(topic => (
+                                        <button
+                                            key={topic.label}
+                                            onClick={() => toggleTopic(topic.label)}
+                                            className={`text-left p-5 rounded-2xl border-2 transition-all group relative overflow-hidden ${selectedTopics.includes(topic.label)
+                                                ? 'bg-sky-50 border-sky-500 shadow-lg'
+                                                : 'bg-white border-slate-100 hover:border-sky-200 hover:shadow-md'
+                                                }`}
+                                        >
+                                            <div className="relative z-10">
+                                                <h4 className={`text-sm font-bold mb-2 transition-colors ${selectedTopics.includes(topic.label) ? 'text-sky-700' : 'text-slate-800'}`}>
+                                                    {topic.label}
+                                                </h4>
+                                                <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 italic group-hover:line-clamp-none transition-all">
+                                                    {topic.description}
+                                                </p>
+                                            </div>
+                                            {selectedTopics.includes(topic.label) && (
+                                                <div className="absolute top-2 right-2 h-4 w-4 bg-sky-500 rounded-full flex items-center justify-center">
+                                                    <div className="h-1.5 w-1.5 bg-white rounded-full" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                    {selectedTopics.length > 0 && (
+                                        <div className="col-span-full">
+                                            <button
+                                                onClick={() => setSelectedTopics([])}
+                                                className="text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors py-2 px-4 bg-rose-50 rounded-lg"
+                                            >
+                                                Clear All Topics
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard
                         title="Total Engagements"
                         value={totals.engagements.toLocaleString()}
-                        icon={<Users className="text-indigo-400" />}
-                        description="Across all analyzed tweets"
+                        icon={<Users className="text-sky-500" />}
+                        description={`Data from ${filteredData.length} tweets`}
                     />
                     <StatCard
                         title="Total Replies"
                         value={totals.replies.toLocaleString()}
-                        icon={<MessageSquare className="text-pink-400" />}
+                        icon={<MessageSquare className="text-sky-400" />}
                         description="Public response volume"
                     />
                     <StatCard
-                        title="Positive Sentiment"
-                        value={`${Math.round((totals.positive / data.length) * 100)}%`}
-                        icon={<TrendingUp className="text-emerald-400" />}
-                        description={`${totals.positive} positive records`}
+                        title="Negative Sentiment"
+                        value={`${filteredData.length > 0 ? Math.round((totals.negative / filteredData.length) * 100) : 0}%`}
+                        icon={<TrendingDown className="text-rose-600" />}
+                        description={`${totals.negative} negative records`}
                     />
                     <StatCard
                         title="Critical Issues"
                         value={totals.negative.toLocaleString()}
-                        icon={<AlertCircle className="text-red-400" />}
+                        icon={<AlertCircle className="text-rose-500" />}
                         description="Negative sentiment reports"
                     />
                 </div>
 
+                {/* AI Summary Section */}
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-8 py-6 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                                <Sparkles className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Llama-3.1 Issue Intelligence</h3>
+                                <p className="text-sky-100 text-sm font-medium">Auditing hotspots, conduct, safety, and infrastructure health</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            {(Object.keys(aiResults).length > 0 || aiLoading) && (
+                                <button
+                                    onClick={() => setAiCollapsed(!aiCollapsed)}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors flex items-center gap-2"
+                                    title={aiCollapsed ? "Expand Analysis" : "Collapse Analysis"}
+                                >
+                                    <span className="text-xs font-bold uppercase tracking-widest hidden md:block">
+                                        {aiCollapsed ? 'Expand' : 'Collapse'}
+                                    </span>
+                                    {aiCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+                                </button>
+                            )}
+                            <div className="h-6 w-px bg-white/20 hidden md:block" />
+                            {showTokenInput ? (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                        <input
+                                            type="password"
+                                            placeholder="HF Token (hf_...)"
+                                            className="pl-9 pr-4 py-2 bg-white rounded-xl text-xs font-bold border-none focus:ring-2 focus:ring-sky-300 transition-all w-48 shadow-inner"
+                                            value={hfToken}
+                                            onChange={(e) => setHfToken(e.target.value)}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleGenerateSummary}
+                                        className="bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors shadow-lg"
+                                    >
+                                        Go
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleGenerateSummary}
+                                    disabled={aiLoading}
+                                    className="bg-white/20 hover:bg-white/30 text-white px-6 py-2.5 rounded-xl text-sm font-bold backdrop-blur-md transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                                >
+                                    {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    {Object.keys(aiResults).length > 0 ? 'Regenerate Analysis' : 'Generate Full Report'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    {!aiCollapsed && (Object.keys(aiResults).length > 0 || aiLoading) && (
+                        <div className="p-8 space-y-8 animate-in fade-in duration-500">
+                            {aiLoading && !activeSectionId && (
+                                <div className="flex items-center gap-4 py-8 animate-pulse">
+                                    <div className="h-2 w-2 bg-sky-500 rounded-full" />
+                                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Initializing AI Agents...</p>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {REPORT_SECTIONS.map((section) => {
+                                    const content = aiResults[section.id];
+                                    const isActive = activeSectionId === section.id;
+
+                                    if (!content && !isActive) return null;
+
+                                    return (
+                                        <div
+                                            key={section.id}
+                                            className={`p-6 rounded-2xl border transition-all duration-300 ${isActive
+                                                ? 'bg-sky-50 border-sky-200 shadow-md ring-2 ring-sky-500/20'
+                                                : 'bg-slate-50 border-slate-100 hover:bg-white hover:shadow-sm'
+                                                }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">{section.label}</h4>
+                                                {isActive && <Loader2 className="h-4 w-4 text-sky-500 animate-spin" />}
+                                            </div>
+                                            {content ? (
+                                                <p className="text-slate-600 text-sm leading-relaxed font-medium capitalize-first">
+                                                    {content}
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <div className="h-2 bg-slate-200 rounded-full w-full animate-pulse" />
+                                                    <div className="h-2 bg-slate-200 rounded-full w-2/3 animate-pulse" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Sentiment Distribution Over Time */}
-                    <SectionCard title="Sentiment Distribution Over Time">
-                        <div className="h-[350px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={sentimentOverTime}>
-                                    <defs>
-                                        <linearGradient id="colorPos" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.positive} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={COLORS.positive} stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="colorNeg" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.negative} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={COLORS.negative} stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                                    <XAxis
-                                        dataKey="date"
-                                        stroke="#71717a"
-                                        fontSize={12}
-                                        tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                    />
-                                    <YAxis stroke="#71717a" fontSize={12} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#f4f4f5' }}
-                                        itemStyle={{ fontSize: '12px' }}
-                                    />
-                                    <Legend verticalAlign="top" height={36} />
-                                    <Area name="Positive" type="monotone" dataKey="positive" stroke={COLORS.positive} fillOpacity={1} fill="url(#colorPos)" />
-                                    <Area name="Negative" type="monotone" dataKey="negative" stroke={COLORS.negative} fillOpacity={1} fill="url(#colorNeg)" />
-                                    <Area name="Neutral" type="monotone" dataKey="neutral" stroke={COLORS.neutral} fill="transparent" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </SectionCard>
+                    <div className="lg:col-span-2">
+                        <SectionCard title="Sentiment Distribution Over Time">
+                            <div className="h-[350px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={sentimentOverTime}>
+                                        <defs>
+                                            <linearGradient id="colorPos" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={COLORS.positive} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={COLORS.positive} stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorNeg" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={COLORS.negative} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={COLORS.negative} stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                        <XAxis
+                                            dataKey="date"
+                                            stroke="#94a3b8"
+                                            fontSize={12}
+                                            tickFormatter={(val) => {
+                                                const date = new Date(val);
+                                                return aggregation === 'daily'
+                                                    ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                                    : date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                                            }}
+                                        />
+                                        <YAxis stroke="#94a3b8" fontSize={12} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#1e293b' }}
+                                            itemStyle={{ fontSize: '12px', fontWeight: 500 }}
+                                            labelFormatter={(label) => {
+                                                const date = new Date(label);
+                                                return aggregation === 'daily'
+                                                    ? date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+                                                    : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                                            }}
+                                        />
+                                        <Legend verticalAlign="top" height={36} />
+                                        <Area name="Positive" type="monotone" dataKey="positive" stroke={COLORS.positive} fillOpacity={1} fill="url(#colorPos)" />
+                                        <Area name="Negative" type="monotone" dataKey="negative" stroke={COLORS.negative} fillOpacity={1} fill="url(#colorNeg)" />
+                                        <Area name="Neutral" type="monotone" dataKey="neutral" stroke={COLORS.neutral} fill="transparent" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </SectionCard>
+                    </div>
 
                     {/* Sentiment Weighted by Engagement Over Time */}
-                    <SectionCard title="Weighted Engagement by Sentiment">
+                    <SectionCard title="Engagement Over Time">
                         <div className="h-[350px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={sentimentOverTime}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                                     <XAxis
                                         dataKey="date"
-                                        stroke="#71717a"
+                                        stroke="#94a3b8"
                                         fontSize={12}
-                                        tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        tickFormatter={(val) => {
+                                            const date = new Date(val);
+                                            return aggregation === 'daily'
+                                                ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                                : date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                                        }}
                                     />
-                                    <YAxis stroke="#71717a" fontSize={12} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#f4f4f5' }}
-                                        itemStyle={{ fontSize: '12px' }}
+                                        content={({ active, payload, label }) => {
+                                            if (active && payload && payload.length) {
+                                                const date = new Date(label);
+                                                const dateStr = aggregation === 'daily'
+                                                    ? date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+                                                    : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+                                                return (
+                                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xl overflow-hidden min-w-[200px]">
+                                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-50 pb-2">{dateStr}</div>
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-2 w-2 rounded-full bg-sky-500" />
+                                                                    <span className="text-xs font-bold text-slate-600">Engagements</span>
+                                                                </div>
+                                                                <span className="text-sm font-black text-slate-900">{payload[0].value?.toLocaleString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-2 w-2 rounded-full bg-slate-400" />
+                                                                    <span className="text-xs font-bold text-slate-600">Replies</span>
+                                                                </div>
+                                                                <span className="text-sm font-black text-slate-900">{payload[1]?.value?.toLocaleString() || payload[0].payload.totalReplies?.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
                                     />
-                                    <Legend verticalAlign="top" height={36} />
-                                    <Bar name="Engagements" dataKey="totalEngagements" fill={COLORS.engagements} radius={[4, 4, 0, 0]} />
+                                    <Legend
+                                        verticalAlign="top"
+                                        height={48}
+                                        content={() => (
+                                            <div className="flex flex-col items-center gap-1 mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-3 w-3 rounded-sm bg-sky-500" />
+                                                    <span className="text-xs font-bold text-slate-600">Total Engagements (Height)</span>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    <span>Light: Fewer Replies</span>
+                                                    <div className="h-1.5 w-16 bg-gradient-to-r from-sky-200 to-sky-600 rounded-full" />
+                                                    <span>Dark: High Replies</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    />
+                                    <Bar name="Engagements" dataKey="totalEngagements" radius={[4, 4, 0, 0]}>
+                                        {(() => {
+                                            const maxReplies = Math.max(...sentimentOverTime.map(d => d.totalReplies), 1);
+                                            return sentimentOverTime.map((entry, index) => {
+                                                const intensity = Math.min(Math.max(entry.totalReplies / maxReplies, 0.2), 1);
+                                                return <Cell key={`cell-${index}`} fill={`rgba(14, 165, 233, ${intensity})`} />;
+                                            });
+                                        })()}
+                                    </Bar>
+                                    <Bar name="Replies" dataKey="totalReplies" hide />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -189,12 +675,12 @@ export default function Dashboard() {
                         <div className="h-[400px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={tagsDistribution} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
-                                    <XAxis type="number" stroke="#71717a" fontSize={12} />
-                                    <YAxis dataKey="tag" type="category" stroke="#71717a" fontSize={12} width={100} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                                    <XAxis type="number" stroke="#94a3b8" fontSize={12} />
+                                    <YAxis dataKey="tag" type="category" stroke="#94a3b8" fontSize={12} width={100} />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#f4f4f5' }}
-                                        itemStyle={{ fontSize: '12px' }}
+                                        contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#1e293b' }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 500 }}
                                     />
                                     <Legend verticalAlign="top" height={36} />
                                     <Bar name="Positive" dataKey="positive" stackId="a" fill={COLORS.positive} />
@@ -205,53 +691,47 @@ export default function Dashboard() {
                         </div>
                     </SectionCard>
 
-                    {/* Sentiment Weighted by Replies */}
-                    <SectionCard title="Weighted Replies Trend">
-                        <div className="h-[400px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={sentimentOverTime}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                                    <XAxis
-                                        dataKey="date"
-                                        stroke="#71717a"
-                                        fontSize={12}
-                                        tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                    />
-                                    <YAxis stroke="#71717a" fontSize={12} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#f4f4f5' }}
-                                        itemStyle={{ fontSize: '12px' }}
-                                    />
-                                    <Legend verticalAlign="top" height={36} />
-                                    <Line name="Replies" type="stepAfter" dataKey="totalReplies" stroke={COLORS.replies} strokeWidth={2} dot={{ fill: COLORS.replies, r: 4 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </SectionCard>
+
                 </div>
             </div>
         </div>
     );
 }
 
+function TimeframeButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${active
+                ? 'bg-sky-500 text-white shadow-md shadow-sky-200'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+        >
+            {label}
+        </button>
+    );
+}
+
 function StatCard({ title, value, icon, description }: { title: string, value: string, icon: React.ReactNode, description: string }) {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-2 hover:border-zinc-700 transition-colors">
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-2 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300">
             <div className="flex items-center justify-between">
-                <span className="text-zinc-400 text-sm font-medium uppercase tracking-wider">{title}</span>
-                {icon}
+                <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">{title}</span>
+                <div className="p-2 bg-slate-50 rounded-lg">
+                    {icon}
+                </div>
             </div>
-            <div className="text-2xl font-bold text-white tracking-tight">{value}</div>
-            <p className="text-xs text-zinc-500 font-normal">{description}</p>
+            <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
+            <p className="text-xs text-slate-400 font-medium">{description}</p>
         </div>
     );
 }
 
 function SectionCard({ title, children }: { title: string, children: React.ReactNode }) {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="border-b border-zinc-800 px-6 py-4">
-                <h3 className="text-lg font-semibold text-zinc-200">{title}</h3>
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="border-b border-slate-100 px-6 py-5 bg-slate-50/50">
+                <h3 className="text-lg font-bold text-slate-800">{title}</h3>
             </div>
             <div className="p-6">
                 {children}
