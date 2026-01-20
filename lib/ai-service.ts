@@ -41,7 +41,7 @@ export async function generateFullReport(
         const genAI = new GoogleGenerativeAI(apiKey);
         // Use gemini-1.5-flash for best cost/performance in free tier
         const model = genAI.getGenerativeModel({
-            model: 'gemini-3-flash',
+            model: 'gemini-3-flash-preview',
             generationConfig: {
                 responseMimeType: "application/json",
             }
@@ -107,7 +107,7 @@ export async function generateReportSection(
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
         const prompt = `You are a Lagos Transit Intelligence Analyst.
 Task: Provide a BRIEF (one paragraph) and SPECIFIC analysis for the category: ${section.label}.
