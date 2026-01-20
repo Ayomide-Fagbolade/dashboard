@@ -107,7 +107,7 @@ export async function generateReportSection(
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash' });
 
         const prompt = `You are a Lagos Transit Intelligence Analyst.
 Task: Provide a BRIEF (one paragraph) and SPECIFIC analysis for the category: ${section.label}.
