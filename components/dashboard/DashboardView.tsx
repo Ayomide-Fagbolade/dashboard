@@ -14,7 +14,7 @@ import {
     ProcessedSentiment,
     ProcessedTag
 } from '@/lib/data-processor';
-import { generateReportSection, REPORT_SECTIONS } from '@/lib/ai-service';
+import { generateFullReport, generateReportSection, REPORT_SECTIONS } from '@/lib/ai-service';
 import {
     Users,
     MessageSquare,
@@ -60,6 +60,7 @@ export default function Dashboard() {
     const [aiCollapsed, setAiCollapsed] = useState(false);
     const [apiKey, setApiKey] = useState(process.env.NEXT_PUBLIC_GEMINI_KEY || '');
     const [showTokenInput, setShowTokenInput] = useState(false);
+    const [aiCache, setAiCache] = useState<Record<string, Record<string, string>>>({});
 
     useEffect(() => {
         fetch('/lean_df.csv')
@@ -114,8 +115,23 @@ export default function Dashboard() {
         setFilteredData(filtered);
         setSentimentOverTime(processSentimentOverTime(filtered, aggregation));
         setTagsDistribution(processTagsDistribution(filtered));
-        setAiResults({}); // Reset summary when filters change
-    }, [data, timeframe, customRange, selectedTags, selectedTopics, filterMode, aggregation]);
+
+        // Check if we have a cached report for these new filters
+        const cacheKey = JSON.stringify({
+            timeframe,
+            customRange,
+            filterMode,
+            selectedTags,
+            selectedTopics,
+            aggregation
+        });
+
+        if (aiCache[cacheKey]) {
+            setAiResults(aiCache[cacheKey]);
+        } else {
+            setAiResults({}); // Reset summary when filters change and no cache exists
+        }
+    }, [data, timeframe, customRange, selectedTags, selectedTopics, filterMode, aggregation, aiCache]);
 
     const totals = filteredData.reduce((acc, curr) => {
         acc.engagements += Number(curr['Total Engagements']) || 0;
@@ -133,19 +149,30 @@ export default function Dashboard() {
             return;
         }
 
+        const cacheKey = JSON.stringify({
+            timeframe,
+            customRange,
+            filterMode,
+            selectedTags,
+            selectedTopics,
+            aggregation
+        });
+
+        if (aiCache[cacheKey]) {
+            setAiResults(aiCache[cacheKey]);
+            setAiCollapsed(false);
+            return;
+        }
+
         setAiLoading(true);
         setAiResults({});
         setShowTokenInput(false);
 
-        const sentimentSummary = `Positive: ${totals.positive}, Negative: ${totals.negative}, Neutral: ${totals.neutral}`;
-        const topTags = tagsDistribution.slice(0, 5).map(t => `${t.tag} (${t.total})`).join(', ');
-
         try {
-            for (const section of REPORT_SECTIONS) {
-                setActiveSectionId(section.id);
-                const content = await generateReportSection(section, filteredData, sentimentSummary, topTags, apiKey);
-                setAiResults(prev => ({ ...prev, [section.id]: content }));
-            }
+            const results = await generateFullReport(filteredData, apiKey);
+            setAiResults(results);
+            setAiCache(prev => ({ ...prev, [cacheKey]: results }));
+            setAiCollapsed(false);
         } catch (error: any) {
             console.error('AI Generation Error:', error);
         } finally {
@@ -494,7 +521,7 @@ export default function Dashboard() {
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                                 {REPORT_SECTIONS.map((section) => {
                                     const content = aiResults[section.id];
                                     const isActive = activeSectionId === section.id;

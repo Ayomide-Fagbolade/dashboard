@@ -14,23 +14,8 @@ export const REPORT_SECTIONS = [
     },
     {
         id: 'incidents',
-        label: 'Critical Incidents',
+        label: 'Critical Issues',
         instruction: 'Synthesize and summarize specific unique accidents, safety breaches, or recurring mechanical failures into a single analytical paragraph. Mention specific spots or dates if found.'
-    },
-    {
-        id: 'conduct',
-        label: 'Staff & Operator Audit',
-        instruction: 'Analyze mentions of driver behavior, terminal staff conduct, or professional ethics. Focus on complaints or praises.'
-    },
-    {
-        id: 'safety',
-        label: 'Accessibility & Safety',
-        instruction: 'Audit concerns regarding security, lighting, harassment, or inclusivity for the elderly and disabled.'
-    },
-    {
-        id: 'infrastructure',
-        label: 'Infrastructure & Equipment',
-        instruction: 'Audit the state of ACs, buses, payment (Cowry) systems, and terminal facilities.'
     },
     {
         id: 'suggestions',
@@ -39,16 +24,13 @@ export const REPORT_SECTIONS = [
     }
 ];
 
-export async function generateReportSection(
-    section: typeof REPORT_SECTIONS[0],
+export async function generateFullReport(
     data: any[],
-    sentimentSummary: string,
-    topTags: string,
     apiKey: string
-): Promise<string> {
-    // Use all filtered data, sorted by engagement (most engaged first)
+): Promise<Record<string, string>> {
     const sectionRelevantData = data
-        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0));
+        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
+        .slice(0, 40); // Sample top 40 for context to stay within token limits and keep it fast
 
     const contextText = sectionRelevantData
         .map(t => t['cleaned tweet'] || t['tweet'] || t['tweet content'])
@@ -57,7 +39,75 @@ export async function generateReportSection(
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        // Use gemini-1.5-flash for best cost/performance in free tier
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-3-flash',
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+
+        const prompt = `You are a Lagos Transit Intelligence Analyst.
+Task: Provide a BRIEF (one paragraph) and SPECIFIC analysis for ${REPORT_SECTIONS.length} key transit categories based on the provided data.
+
+Categories to analyze:
+${REPORT_SECTIONS.map(s => `- ${s.label} (ID: ${s.id}): ${s.instruction}`).join('\n')}
+
+Rules:
+1. Provide ONLY one paragraph per category.
+2. DO NOT mention statistics (e.g., "50% of users").
+3. DO NOT use markdown formatting (no stars, no bold).
+4. Be succinct, professional, and factual.
+5. If no specific information is found for a category, use: "No specific reports found for this focus area in the current dataset."
+6. Return a valid JSON object where keys are the Category IDs and values are the analysis strings.
+
+Data Context (Top Reports):
+${contextText}`;
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const parsed = JSON.parse(responseText);
+
+        // Cleanup results
+        const cleaned: Record<string, string> = {};
+        REPORT_SECTIONS.forEach(section => {
+            let content = parsed[section.id] || parsed[section.label] || 'Analysis temporarily unavailable.';
+            content = content
+                .replace(/\*/g, '')
+                .replace(/^- /mg, '')
+                .replace(/^Analysis:/i, '')
+                .trim();
+            cleaned[section.id] = content;
+        });
+
+        return cleaned;
+    } catch (error: any) {
+        console.error(`Error generating full report:`, error);
+        throw error;
+    }
+}
+
+export async function generateReportSection(
+    section: typeof REPORT_SECTIONS[0],
+    data: any[],
+    sentimentSummary: string,
+    topTags: string,
+    apiKey: string
+): Promise<string> {
+    // Keep this for individual section regenerations if needed
+    // Use the same model for consistency
+    const sectionRelevantData = data
+        .sort((a, b) => (Number(b['Total Engagements']) || 0) - (Number(a['Total Engagements']) || 0))
+        .slice(0, 20);
+
+    const contextText = sectionRelevantData
+        .map(t => t['cleaned tweet'] || t['tweet'] || t['tweet content'])
+        .filter(Boolean)
+        .join('\n- ');
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const prompt = `You are a Lagos Transit Intelligence Analyst.
 Task: Provide a BRIEF (one paragraph) and SPECIFIC analysis for the category: ${section.label}.
